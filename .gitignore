@@ -1,0 +1,7 @@
+node_modules/
+**/node_modules/
+building-app/.next/
+building-app/out/
+.env
+.env.local
+.DS_Store
