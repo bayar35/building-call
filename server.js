@@ -83,7 +83,7 @@ async function dispatchJobToNextMaster(jobId) {
 }
 
 // REST API: Шинэ ажил үүсгэх
-app.post('/api/create-job', (req, res) => {
+app.post('/api/create-job', (req, res) => { 
   try {
     const { clientName, serviceType, assignedMasterIds } = req.body;
     const jobId = 'job_' + Date.now();
