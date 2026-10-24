@@ -5,7 +5,12 @@ const cors = require('cors');
 const { Server } = require('socket.io');
 
 const app = express();
-app.use(cors());
+// server.js
+app.use(cors({
+  origin: 'https://building-call-pi.vercel.app', // Your Vercel frontend domain
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 app.use(express.json());
 
 const server = http.createServer(app);
