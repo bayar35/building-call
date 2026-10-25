@@ -1,4 +1,4 @@
-'use client'; // эсвэл 'use client'
+'use client';
 import { useState } from 'react';
 
 export default function MasterRegisterPage() {
@@ -6,84 +6,149 @@ export default function MasterRegisterPage() {
     masterId: '',
     name: '',
     phone: '',
-    profession: '10. Плитачин (Гидроизоляцитай)',
-    experienceYears: '',
-    professionalLicenseImg: '',
-    idCardImg: '',
-    referencePhone: ''
+    serviceType: '10. Плитачин (Гидроизоляцитай)',
+    rating: 5.0
   });
 
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
     try {
       const res = await fetch('https://building-call.onrender.com/api/register-master', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
+
       const data = await res.json();
-      if (data.success) {
-        setMessage('Мастер амжилттай бүртгэгдлээ! 🎉');
+      if (res.ok && data.success) {
+        setMessage(`✅ Амжилттай бүртгэгдлээ! Мастер ID: ${data.masterId}`);
+        setFormData({
+          masterId: '',
+          name: '',
+          phone: '',
+          serviceType: '10. Плитачин (Гидроизоляцитай)',
+          rating: 5.0
+        });
       } else {
-        setMessage('Алдаа гарлаа: ' + data.error);
+        setMessage(`❌ Алдаа гарлаа: ${data.error || 'Бүртгэгдсэнгүй'}`);
       }
     } catch (err) {
-      setMessage('Сүлжээний алдаа гарлаа.');
+      setMessage(`❌ Сервертэй холбогдоход алдаа гарлаа: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto p-6 bg-white shadow-md rounded-lg mt-10">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800">🛠️ Мастер Бүртгүүлэх Хэсэг</h1>
-      {message && <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">{message}</div>}
+    <div style={{ maxWidth: '600px', margin: '40px auto', padding: '30px', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', fontFamily: 'sans-serif' }}>
+      <h2 style={{ color: '#d97706', marginBottom: '20px', textAlign: 'center' }}>🔨 Мастер / Бригад Бүртгүүлэх</h2>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Мастер ID (Жишээ нь: master_6)</label>
-          <input type="text" required className="w-full p-2 border rounded" 
-            value={formData.masterId} onChange={e => setFormData({...formData, masterId: e.target.value})} />
+          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Мастер ID (Заавал биш):</label>
+          <input 
+            type="text" 
+            name="masterId" 
+            value={formData.masterId} 
+            onChange={handleChange} 
+            placeholder="Жишээ: master_6 (Хоосон бол автоматаар үүснэ)"
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
+          />
         </div>
+
         <div>
-          <label className="block text-sm font-medium text-gray-700">Овог Нэр</label>
-          <input type="text" required className="w-full p-2 border rounded" 
-            value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Бригад / Мастерын нэр:</label>
+          <input 
+            type="text" 
+            name="name" 
+            value={formData.name} 
+            onChange={handleChange} 
+            required 
+            placeholder="Жишээ: Бат-Эрдэнэ Бригад"
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
+          />
         </div>
+
         <div>
-          <label className="block text-sm font-medium text-gray-700">Утасны дугаар</label>
-          <input type="text" required className="w-full p-2 border rounded" 
-            value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Утасны дугаар:</label>
+          <input 
+            type="text" 
+            name="phone" 
+            value={formData.phone} 
+            onChange={handleChange} 
+            required 
+            placeholder="99112233"
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
+          />
         </div>
+
         <div>
-          <label className="block text-sm font-medium text-gray-700">Мэргэжлийн чиглэл</label>
-          <input type="text" required className="w-full p-2 border rounded" 
-            value={formData.profession} onChange={e => setFormData({...formData, profession: e.target.value})} />
+          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Мэргэжлийн чиглэл:</label>
+          <select 
+            name="serviceType" 
+            value={formData.serviceType} 
+            onChange={handleChange}
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
+          >
+            <option value="10. Плитачин (Гидроизоляцитай)">10. Плитачин (Гидроизоляцитай)</option>
+            <option value="Обой хийх">Обой хийх</option>
+            <option value="Шал паркет суулгах">Шал паркет суулгах</option>
+            <option value="Цахилгааны ажил">Цахилгааны ажил</option>
+            <option value="Сантехникийн ажил">Сантехникийн ажил</option>
+          </select>
         </div>
+
         <div>
-          <label className="block text-sm font-medium text-gray-700">Ажилласан жил</label>
-          <input type="number" required className="w-full p-2 border rounded" 
-            value={formData.experienceYears} onChange={e => setFormData({...formData, experienceYears: e.target.value})} />
+          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Үнэлгээ (1.0 - 5.0):</label>
+          <input 
+            type="number" 
+            step="0.1" 
+            max="5.0" 
+            min="1.0" 
+            name="rating" 
+            value={formData.rating} 
+            onChange={handleChange} 
+            required
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
+          />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Мэргэжлийн үнэмлэхний зураг (URL)</label>
-          <input type="text" className="w-full p-2 border rounded" 
-            value={formData.professionalLicenseImg} onChange={e => setFormData({...formData, professionalLicenseImg: e.target.value})} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Иргэний үнэмлэхний зураг (URL)</label>
-          <input type="text" className="w-full p-2 border rounded" 
-            value={formData.idCardImg} onChange={e => setFormData({...formData, idCardImg: e.target.value})} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Лавлах утас</label>
-          <input type="text" className="w-full p-2 border rounded" 
-            value={formData.referencePhone} onChange={e => setFormData({...formData, referencePhone: e.target.value})} />
-        </div>
-        <button type="submit" className="w-full bg-orange-600 text-white p-3 rounded font-bold hover:bg-orange-700">
-          Бүртгүүлэх
+
+        <button 
+          type="submit" 
+          disabled={loading}
+          style={{ 
+            background: '#d97706', 
+            color: '#fff', 
+            padding: '12px', 
+            border: 'none', 
+            borderRadius: '6px', 
+            fontWeight: 'bold', 
+            cursor: 'pointer',
+            marginTop: '10px'
+          }}
+        >
+          {loading ? 'Бүртгэж байна...' : 'MongoDB-д Бүртгүүлэх'}
         </button>
       </form>
+
+      {message && (
+        <p style={{ marginTop: '20px', textAlign: 'center', fontWeight: 'bold', color: message.includes('✅') ? 'green' : 'red' }}>
+          {message}
+        </p>
+      )}
     </div>
   );
 }
