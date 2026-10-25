@@ -1,4 +1,4 @@
-'use class'; // эсвэл 'use client'
+'use client'; // эсвэл 'use client'
 import { useState } from 'react';
 
 export default function MasterRegisterPage() {
