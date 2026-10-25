@@ -3,15 +3,25 @@ const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const { Server } = require('socket.io');
+const mongoose = require('mongoose');
+require('dotenv').config();
+
+const Job = require('./models/Job');
+const Master = require('./models/Master');
 
 const app = express();
-// server.js
-app.use(cors({
-  origin: 'https://building-call-pi.vercel.app', // Your Vercel frontend domain
-  methods: ['GET', 'POST'],
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
+
+// MongoDB Atlas холболт
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => {
+  console.log('MongoDB Atlas-тай амжилттай холбогдлоо!');
+}).catch(err => {
+  console.error('MongoDB холбогдох үед алдаа гарлаа:', err);
+});
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -20,9 +30,6 @@ const io = new Server(server, {
 
 const TIMEOUT_DURATION = 60 * 1000; // 60 секунд (1 минут)
 const activeSockets = {}; // masterId -> socketId
-
-// Санах ойд ажлуудыг хадгалах сан (Database simulation)
-const jobsDB = new Map();
 
 io.on('connection', (socket) => {
   console.log(`Шинэ төхөөрөмж холбогдлоо: ${socket.id}`);
@@ -43,9 +50,9 @@ io.on('connection', (socket) => {
   });
 });
 
-// 1 Минутын Убер Диспатч Алгоритм
+// 1 Минутын Убер Диспатч Алгоритм (MongoDB дээр)
 async function dispatchJobToNextMaster(jobId) {
-  const job = jobsDB.get(jobId);
+  const job = await Job.findOne({ jobId });
   if (!job || job.status !== 'PENDING') return;
 
   const currentIdx = job.currentMasterIndex;
@@ -54,6 +61,7 @@ async function dispatchJobToNextMaster(jobId) {
   // Хэрэв бүх мастеруудад хүсэлт очиж дууссан бол
   if (currentIdx >= masters.length) {
     job.status = 'NO_MASTER_AVAILABLE';
+    await job.save();
     io.emit(`job_update_${jobId}`, { status: 'NO_MASTER_AVAILABLE' });
     console.log(`[СИСТЕМ]: Захиалга ${jobId} дээр бүх мастерууд хариу өгсөнгүй.`);
     return;
@@ -66,10 +74,18 @@ async function dispatchJobToNextMaster(jobId) {
   console.log(`[УРИЛГА ИЛГЭЭВ]: Мастер [${currentMasterId}] руу 1 минутын урилга явлаа...`);
   console.log(`[ТАЙМЕР]: 1 минут (60 сек) тоолж эхэллээ...`);
 
+  // Диспатч түүхэнд шинээр нэмэх
+  job.dispatchHistory.push({
+    masterId: currentMasterId,
+    sentAt: new Date(),
+    action: 'PENDING'
+  });
+  await job.save();
+
   // Мастер онлайн байгаа бол Real-time Socket мэдэгдэл илгээх
   if (socketId) {
     io.to(socketId).emit('new_job_offer', {
-      jobId: job.id,
+      jobId: job.jobId,
       clientName: job.clientName,
       serviceType: job.serviceType,
       timeoutSeconds: 60
@@ -77,33 +93,42 @@ async function dispatchJobToNextMaster(jobId) {
   }
 
   // 60 секундийн таймер эхлүүлэх
-  setTimeout(() => {
-    const checkJob = jobsDB.get(jobId);
+  setTimeout(async () => {
+    const checkJob = await Job.findOne({ jobId });
     if (checkJob && checkJob.status === 'PENDING' && checkJob.currentMasterIndex === currentIdx) {
       console.log(`[ХУГАЦАА ДУУСАВ]: Мастер [${currentMasterId}] 1 минутад хариулсангүй!`);
+      
+      const historyItem = checkJob.dispatchHistory.find(h => h.masterId === currentMasterId && h.action === 'PENDING');
+      if (historyItem) {
+        historyItem.action = 'TIMEOUT';
+        historyItem.respondedAt = new Date();
+      }
+
       checkJob.currentMasterIndex += 1;
-      dispatchJobToNextMaster(jobId); // Дараагийн мастер руу автоматаар шилжих
+      await checkJob.save();
+      dispatchJobToNextMaster(jobId); // Дараагийн мастер руу шилжих
     }
   }, TIMEOUT_DURATION);
 }
 
-// REST API: Шинэ ажил үүсгэх
-app.post('/api/create-job', (req, res) => { 
+// REST API: Шинэ ажил үүсгэх (Database руу хадгалах)
+app.post('/api/create-job', async (req, res) => {
   try {
     const { clientName, serviceType, assignedMasterIds } = req.body;
     const jobId = 'job_' + Date.now();
     
-    const newJob = {
-      id: jobId,
+    const newJob = new Job({
+      jobId,
       clientName: clientName || 'Захиалагч',
       serviceType: serviceType || 'Засварын ажил',
       status: 'PENDING',
       currentMasterIndex: 0,
       assignedMasterIds: assignedMasterIds || ['master_1', 'master_2', 'master_3', 'master_4', 'master_5'],
-      acceptedMasterId: null
-    };
+      acceptedMasterId: null,
+      dispatchHistory: []
+    });
 
-    jobsDB.set(jobId, newJob);
+    await newJob.save();
     res.json({ success: true, jobId });
     
     // Убер диспатч ротацийг эхлүүлэх
@@ -114,18 +139,28 @@ app.post('/api/create-job', (req, res) => {
 });
 
 // REST API: Мастер ЗӨВШӨӨРӨХ / ТАТГАЛЗАХ
-app.post('/api/respond', (req, res) => {
+app.post('/api/respond', async (req, res) => {
   try {
     const { jobId, masterId, action } = req.body;
-    const job = jobsDB.get(jobId);
+    const job = await Job.findOne({ jobId });
 
     if (!job || job.status !== 'PENDING') {
       return res.status(400).json({ message: "Учралт дууссан эсвэл хаагдсан байна." });
     }
 
+    const historyItem = job.dispatchHistory.find(h => h.masterId === masterId && h.action === 'PENDING');
+
     if (action === 'ACCEPT') {
       job.status = 'ACCEPTED';
       job.acceptedMasterId = masterId;
+      
+      if (historyItem) {
+        historyItem.action = 'ACCEPT';
+        historyItem.respondedAt = new Date();
+      }
+
+      await job.save();
+
       io.emit(`job_update_${jobId}`, { status: 'ACCEPTED', masterId });
       console.log(`\n==================================================`);
       console.log(`[АМЖИЛТТАЙ]: Мастер [${masterId}] ажлыг ЗӨВШӨӨРЛӨӨ!`);
@@ -135,10 +170,30 @@ app.post('/api/respond', (req, res) => {
 
     if (action === 'REJECT') {
       console.log(`\n[ТАТГАЛЗАВ]: Мастер [${masterId}] ажлаас татгалзлаа.`);
+      
+      if (historyItem) {
+        historyItem.action = 'REJECT';
+        historyItem.respondedAt = new Date();
+      }
+
       job.currentMasterIndex += 1;
+      await job.save();
+
       dispatchJobToNextMaster(jobId); // Шууд дараагийн мастер руу шилжих
       return res.json({ success: true, message: "Татгалзлаа." });
     }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// REST API: Мастер бүртгэх
+app.post('/api/register-master', async (req, res) => {
+  try {
+    const masterData = req.body;
+    const newMaster = new Master(masterData);
+    await newMaster.save();
+    res.json({ success: true, message: "Мастер амжилттай бүртгэгдлээ", masterId: newMaster.masterId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
