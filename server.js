@@ -111,6 +111,16 @@ async function dispatchJobToNextMaster(jobId) {
   }, TIMEOUT_DURATION);
 }
 
+// REST API: Бүх захиалгын түүх болон диспетчер логуудыг авах
+app.get('/api/jobs', async (req, res) => {
+  try {
+    const jobs = await Job.find().sort({ createdAt: -1 }); // Хамгийн шинэ нь эхэндээ гарна
+    res.json({ success: true, jobs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // REST API: Шинэ ажил үүсгэх (Database руу хадгалах)
 app.post('/api/create-job', async (req, res) => {
   try {
