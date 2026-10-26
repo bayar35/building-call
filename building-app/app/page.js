@@ -1,12 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import MasterAlertModal from '@/components/MasterAlertModal';
+import MasterAlertModal from './components/MasterAlertModal';
 
 let socket;
 
 const CORE_TRADES = [
-  { id: 'demolition', name: '1. Нураалт, суваглал, хог ачилт' },
+  { id: 'demolition', name: '1. Өрөөний зохион байгуулалт өөрчлөх, нураах, хог ачилт' },
   { id: 'plumbing', name: '2. Сантехник (Цэвэр, бохир ус, халаалт)' },
   { id: 'electrical', name: '3. Цахилгаан, холбоо, соронзон трек' },
   { id: 'hvac', name: '4. Агааржуулалт, кондиционер' },
@@ -20,7 +20,7 @@ const CORE_TRADES = [
 ];
 
 export default function HomePage() {
-  const [selectedTrade, setSelectedTrade] = useState(CORE_TRADES[9].id);
+  const [selectedTrade, setSelectedTrade] = useState(CORE_TRADES[0].id);
   const [clientName, setClientName] = useState('Баярсайхан');
   const [status, setStatus] = useState('');
   const [activeJobId, setActiveJobId] = useState(null);
@@ -28,6 +28,17 @@ export default function HomePage() {
 
   const [currentRole, setCurrentRole] = useState('client');
   const [offerData, setOfferData] = useState(null);
+
+  // Хэмжээ болон нэмэлт үзүүлэлтүүдийн төлөв
+  const [specs, setSpecs] = useState({
+    width: '',
+    height: '',
+    length: '',
+    area: '',
+    volume: '',
+    duration: '',
+    advancePayment: ''
+  });
 
   useEffect(() => {
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
@@ -52,8 +63,10 @@ export default function HomePage() {
   }, [currentRole]);
 
   const handleCreateJob = async () => {
-    setStatus('ТОП Мастерууд руу 1 минут тутмын Убер урилга илгээж байна...');
+    setStatus('ТОП Мастерууд руу 10 секундийн Убер урилга илгээж байна...');
     setAcceptedMaster(null);
+
+    const tradeName = CORE_TRADES.find(t => t.id === selectedTrade)?.name;
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000'}/api/create-job`, {
@@ -61,8 +74,8 @@ export default function HomePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientName: clientName,
-          serviceType: CORE_TRADES.find(t => t.id === selectedTrade)?.name,
-          assignedMasterIds: ['master_1', 'master_2', 'master_3', 'master_4', 'master_5']
+          serviceType: tradeName,
+          specs: specs
         })
       });
 
@@ -72,10 +85,10 @@ export default function HomePage() {
 
         socket.on(`job_update_${data.jobId}`, (update) => {
           if (update.status === 'ACCEPTED') {
-            setStatus('Мастер амжилттай баталгаажлаа!');
+            setStatus('Мастер ажлыг хүлээн авлаа. Бригад хаягийн дагуу хөдөллөө!');
             setAcceptedMaster(update.masterId);
           } else if (update.status === 'NO_MASTER_AVAILABLE') {
-            setStatus('Одоогоор боломжит ТОП мастер олдсонгүй.');
+            setStatus('Одоогоор боломжит мастер олдсонгүй.');
           }
         });
       }
@@ -95,18 +108,36 @@ export default function HomePage() {
           </span>
         </div>
         
-        <div className="flex items-center space-x-2 text-xs">
-          <span className="text-gray-400">Турших горим:</span>
-          <select 
-            value={currentRole} 
-            onChange={(e) => setCurrentRole(e.target.value)}
-            className="bg-slate-800 text-white p-1 rounded border border-slate-700"
+        <div className="flex items-center space-x-3">
+          {/* Мастер Бүртгүүлэх товчлуур */}
+          <a 
+            href="/register" 
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg shadow transition-all flex items-center gap-1"
           >
-            <option value="client">Захиалагч</option>
-            <option value="master_1">Мастер 1 (ТОП-1)</option>
-            <option value="master_2">Мастер 2 (ТОП-2)</option>
-            <option value="master_3">Мастер 3 (ТОП-3)</option>
-          </select>
+            🔨 Мастер Бүртгүүлэх
+          </a>
+
+          {/* Мастер Нэвтрэх товчлуур (Шинээр нэмэгдсэн) */}
+          <a 
+            href="/master-profile" 
+            className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-lg shadow transition-all flex items-center gap-1"
+          >
+            🔐 Мастер Нэвтрэх
+          </a>
+
+          <div className="flex items-center space-x-2 text-xs ml-2">
+            <span className="text-gray-400">Турших горим:</span>
+            <select 
+              value={currentRole} 
+              onChange={(e) => setCurrentRole(e.target.value)}
+              className="bg-slate-800 text-white p-1 rounded border border-slate-700"
+            >
+              <option value="client">Захиалагч</option>
+              <option value="master_1">Мастер 1 (ТОП-1)</option>
+              <option value="master_2">Мастер 2 (ТОП-2)</option>
+              <option value="master_3">Мастер 3 (ТОП-3)</option>
+            </select>
+          </div>
         </div>
       </header>
 
@@ -115,7 +146,7 @@ export default function HomePage() {
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
             <h1 className="text-2xl font-black text-gray-800 mb-2">Засварын Ажил Захиалах</h1>
             <p className="text-sm text-gray-500 mb-6">
-              Шалгагдсан ТОП-5 мастерууд руу 1 минутын Убер алгоритмаар автоматаар урилга хүргэгдэнэ.
+              Мэргэшлийн чиглэл болон үнэлгээгээр шалгагдсан мастерууд руу UBER алгоритмаар автоматаар урилга хүргэгдэнэ.
             </p>
 
             <div className="space-y-4">
@@ -130,7 +161,7 @@ export default function HomePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Мэргэшлийн Чиглэл сонгох</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Захиалах ажлын мэдээлэл</label>
                 <select 
                   value={selectedTrade} 
                   onChange={(e) => setSelectedTrade(e.target.value)}
@@ -142,11 +173,137 @@ export default function HomePage() {
                 </select>
               </div>
 
+              {/* Хэмжээ болон үзүүлэлтүүдийг сонгох / бичих хэсэг */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Өргөн (метр)</label>
+                  <input 
+                    type="text" 
+                    list="width-options"
+                    value={specs.width}
+                    onChange={(e) => setSpecs({...specs, width: e.target.value})}
+                    placeholder="Сонгох эсвэл бичих"
+                    className="w-full p-2.5 border rounded-lg bg-white text-sm"
+                  />
+                  <datalist id="width-options">
+                    <option value="3 м" />
+                    <option value="4 м" />
+                    <option value="5 м" />
+                    <option value="6 м" />
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Өндөр (метр)</label>
+                  <input 
+                    type="text" 
+                    list="height-options"
+                    value={specs.height}
+                    onChange={(e) => setSpecs({...specs, height: e.target.value})}
+                    placeholder="Сонгох эсвэл бичих"
+                    className="w-full p-2.5 border rounded-lg bg-white text-sm"
+                  />
+                  <datalist id="height-options">
+                    <option value="2.5 м" />
+                    <option value="2.8 м" />
+                    <option value="3.0 м" />
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Урт (метр)</label>
+                  <input 
+                    type="text" 
+                    list="length-options"
+                    value={specs.length}
+                    onChange={(e) => setSpecs({...specs, length: e.target.value})}
+                    placeholder="Сонгох эсвэл бичих"
+                    className="w-full p-2.5 border rounded-lg bg-white text-sm"
+                  />
+                  <datalist id="length-options">
+                    <option value="5 м" />
+                    <option value="6 м" />
+                    <option value="8 м" />
+                    <option value="10 м" />
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Талбай (м2)</label>
+                  <input 
+                    type="text" 
+                    list="area-options"
+                    value={specs.area}
+                    onChange={(e) => setSpecs({...specs, area: e.target.value})}
+                    placeholder="Сонгох эсвэл бичих"
+                    className="w-full p-2.5 border rounded-lg bg-white text-sm"
+                  />
+                  <datalist id="area-options">
+                    <option value="20 м²" />
+                    <option value="35 м²" />
+                    <option value="50 м²" />
+                    <option value="80 м²" />
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Эзэлхүүн (м3)</label>
+                  <input 
+                    type="text" 
+                    list="volume-options"
+                    value={specs.volume}
+                    onChange={(e) => setSpecs({...specs, volume: e.target.value})}
+                    placeholder="Сонгох эсвэл бичих"
+                    className="w-full p-2.5 border rounded-lg bg-white text-sm"
+                  />
+                  <datalist id="volume-options">
+                    <option value="50 м³" />
+                    <option value="100 м³" />
+                    <option value="150 м³" />
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Хугацаа</label>
+                  <input 
+                    type="text" 
+                    list="duration-options"
+                    value={specs.duration}
+                    onChange={(e) => setSpecs({...specs, duration: e.target.value})}
+                    placeholder="Сонгох эсвэл бичих"
+                    className="w-full p-2.5 border rounded-lg bg-white text-sm"
+                  />
+                  <datalist id="duration-options">
+                    <option value="1 хоног" />
+                    <option value="3 хоног" />
+                    <option value="7 хоног" />
+                    <option value="14 хоног" />
+                  </datalist>
+                </div>
+
+                <div className="md:col-span-3">
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Урьдчилсан төлбөр</label>
+                  <input 
+                    type="text" 
+                    list="payment-options"
+                    value={specs.advancePayment}
+                    onChange={(e) => setSpecs({...specs, advancePayment: e.target.value})}
+                    placeholder="Сонгох эсвэл шууд бичих (Жишээ: 30%, 500,000₮)"
+                    className="w-full p-2.5 border rounded-lg bg-white text-sm"
+                  />
+                  <datalist id="payment-options">
+                    <option value="30% Эскроу урьдчилгаа" />
+                    <option value="50% Эскроу урьдчилгаа" />
+                    <option value="100% Эскроу урьдчилгаа" />
+                  </datalist>
+                </div>
+              </div>
+
               <button 
                 onClick={handleCreateJob}
                 className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black py-4 rounded-xl shadow-lg shadow-amber-500/20 transition-all text-lg"
               >
-                Мастер Хайх (1 Минутын Таймер Эхлүүлэх)
+                Мастер Хайх (10 Секундийн Таймер Эхлүүлэх)
               </button>
             </div>
 
@@ -164,7 +321,7 @@ export default function HomePage() {
                 <h3 className="text-lg font-bold">🎉 Мастертай Холбогдлоо!</h3>
                 <p className="text-sm mt-1">Баталгаажсан Мастер: <span className="font-extrabold">{acceptedMaster}</span></p>
                 <p className="text-xs text-emerald-700 mt-2">
-                  * Төлбөр 100% Эскроу дансанд байршсаны дараа ажил эхэлж, 30/30/40 шатлалаар олгогдоно.
+                  * Төлбөр 100% Эскроу дансанд байршсаны дараа ажил эхэлнэ (5% платформ шимтгэл суутгагдана).
                 </p>
               </div>
             )}
@@ -173,7 +330,7 @@ export default function HomePage() {
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 text-center">
             <h2 className="text-xl font-bold">Мастерын Симуляцийн Дэлгэц</h2>
             <p className="text-sm text-gray-500 mt-1">Одоогийн бүртгэлтэй ID: <span className="font-bold text-amber-600">{currentRole}</span></p>
-            <p className="text-xs text-gray-400 mt-4">Захиалагч цонхноос ажил захиалахад энд 1 минутын таймертай поп-ап гарч ирнэ.</p>
+            <p className="text-xs text-gray-400 mt-4">Захиалагч цонхноос ажил захиалахад энд 10 секундийн таймертай поп-ап гарч ирнэ.</p>
           </div>
         )}
       </div>

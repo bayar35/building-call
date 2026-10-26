@@ -1,17 +1,33 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
+
+const CORE_TRADES = [
+  { id: 'demolition', name: '1. Нураалт, суваглал, хог ачилт' },
+  { id: 'plumbing', name: '2. Сантехник (Цэвэр, бохир ус, халаалт)' },
+  { id: 'electrical', name: '3. Цахилгаан, холбоо, соронзон трек' },
+  { id: 'hvac', name: '4. Агааржуулалт, кондиционер' },
+  { id: 'windows', name: '5. Цонх, хаалга угсралт' },
+  { id: 'gypsum', name: '6. Гипс, өрлөг, тэгшилгээ' },
+  { id: 'wpc_boards', name: '7. WPC / SPC Хавтан наалт' },
+  { id: 'painting', name: '8. Эмульс, замаа, шпаклевк' },
+  { id: 'wallpaper', name: '9. Обой наалт' },
+  { id: 'tiling', name: '10. Плитачин (Гидроизоляцитай)' },
+  { id: 'flooring', name: '11. Шал, паркет, мужаан' },
+];
 
 export default function MasterRegisterPage() {
   const [formData, setFormData] = useState({
     masterId: '',
     name: '',
     phone: '',
-    serviceType: '10. Плитачин (Гидроизоляцитай)',
+    serviceType: CORE_TRADES[8].name, // '9. Обой наалт'
     rating: 5.0
   });
 
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -26,7 +42,7 @@ export default function MasterRegisterPage() {
     setMessage('');
 
     try {
-      const res = await fetch('https://building-call.onrender.com/api/register-master', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000'}/api/register-master`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -35,13 +51,7 @@ export default function MasterRegisterPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setMessage(`✅ Амжилттай бүртгэгдлээ! Мастер ID: ${data.masterId}`);
-        setFormData({
-          masterId: '',
-          name: '',
-          phone: '',
-          serviceType: '10. Плитачин (Гидроизоляцитай)',
-          rating: 5.0
-        });
+        setIsRegistered(true);
       } else {
         setMessage(`❌ Алдаа гарлаа: ${data.error || 'Бүртгэгдсэнгүй'}`);
       }
@@ -53,102 +63,101 @@ export default function MasterRegisterPage() {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '40px auto', padding: '30px', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', fontFamily: 'sans-serif' }}>
-      <h2 style={{ color: '#d97706', marginBottom: '20px', textAlign: 'center' }}>🔨 Мастер / Бригад Бүртгүүлэх</h2>
-      
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <div>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Мастер ID (Заавал биш):</label>
-          <input 
-            type="text" 
-            name="masterId" 
-            value={formData.masterId} 
-            onChange={handleChange} 
-            placeholder="Жишээ: master_6 (Хоосон бол автоматаар үүснэ)"
-            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
-          />
-        </div>
+    <main className="min-h-screen bg-gray-50 p-6 flex flex-col items-center justify-center">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <h2 className="text-2xl font-black text-amber-600 mb-6 text-center">🔨 Мастер / Бригад Бүртгүүлэх</h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase mb-1">Мастер ID (Заавал биш):</label>
+            <input 
+              type="text" 
+              name="masterId" 
+              value={formData.masterId} 
+              onChange={handleChange} 
+              placeholder="Жишээ: master_6"
+              className="w-full p-3 border rounded-xl"
+            />
+          </div>
 
-        <div>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Бригад / Мастерын нэр:</label>
-          <input 
-            type="text" 
-            name="name" 
-            value={formData.name} 
-            onChange={handleChange} 
-            required 
-            placeholder="Жишээ: Бат-Эрдэнэ Бригад"
-            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
-          />
-        </div>
+          <div>
+            <label className="block text-xs font-bold uppercase mb-1">Бригад / Мастерын нэр:</label>
+            <input 
+              type="text" 
+              name="name" 
+              value={formData.name} 
+              onChange={handleChange} 
+              required 
+              placeholder="Бат-Эрдэнэ Бригад"
+              className="w-full p-3 border rounded-xl"
+            />
+          </div>
 
-        <div>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Утасны дугаар:</label>
-          <input 
-            type="text" 
-            name="phone" 
-            value={formData.phone} 
-            onChange={handleChange} 
-            required 
-            placeholder="99112233"
-            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
-          />
-        </div>
+          <div>
+            <label className="block text-xs font-bold uppercase mb-1">Утасны дугаар:</label>
+            <input 
+              type="text" 
+              name="phone" 
+              value={formData.phone} 
+              onChange={handleChange} 
+              required 
+              placeholder="99112233"
+              className="w-full p-3 border rounded-xl"
+            />
+          </div>
 
-        <div>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Мэргэжлийн чиглэл:</label>
-          <select 
-            name="serviceType" 
-            value={formData.serviceType} 
-            onChange={handleChange}
-            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
+          <div>
+            <label className="block text-xs font-bold uppercase mb-1">Мэргэжлийн чиглэл:</label>
+            <select 
+              name="serviceType" 
+              value={formData.serviceType} 
+              onChange={handleChange}
+              className="w-full p-3 border rounded-xl bg-white"
+            >
+              {CORE_TRADES.map(trade => (
+                <option key={trade.id} value={trade.name}>{trade.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase mb-1">Үнэлгээ (1.0 - 5.0):</label>
+            <input 
+              type="number" 
+              step="0.1" 
+              max="5.0" 
+              min="1.0" 
+              name="rating" 
+              value={formData.rating} 
+              onChange={handleChange} 
+              required
+              className="w-full p-3 border rounded-xl"
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black py-3 rounded-xl shadow-lg transition-all"
           >
-            <option value="10. Плитачин (Гидроизоляцитай)">10. Плитачин (Гидроизоляцитай)</option>
-            <option value="Обой хийх">Обой хийх</option>
-            <option value="Шал паркет суулгах">Шал паркет суулгах</option>
-            <option value="Цахилгааны ажил">Цахилгааны ажил</option>
-            <option value="Сантехникийн ажил">Сантехникийн ажил</option>
-          </select>
-        </div>
+            {loading ? 'Бүртгэж байна...' : 'MongoDB-д Бүртгүүлэх'}
+          </button>
+        </form>
 
-        <div>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Үнэлгээ (1.0 - 5.0):</label>
-          <input 
-            type="number" 
-            step="0.1" 
-            max="5.0" 
-            min="1.0" 
-            name="rating" 
-            value={formData.rating} 
-            onChange={handleChange} 
-            required
-            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
-          />
-        </div>
-
-        <button 
-          type="submit" 
-          disabled={loading}
-          style={{ 
-            background: '#d97706', 
-            color: '#fff', 
-            padding: '12px', 
-            border: 'none', 
-            borderRadius: '6px', 
-            fontWeight: 'bold', 
-            cursor: 'pointer',
-            marginTop: '10px'
-          }}
-        >
-          {loading ? 'Бүртгэж байна...' : 'MongoDB-д Бүртгүүлэх'}
-        </button>
-      </form>
-
-      {message && (
-        <p style={{ marginTop: '20px', textAlign: 'center', fontWeight: 'bold', color: message.includes('✅') ? 'green' : 'red' }}>
-          {message}
-        </p>
-      )}
-    </div>
+        {message && (
+          <div className="mt-6 p-4 rounded-xl bg-slate-100 text-center">
+            <p className="font-bold text-sm text-emerald-700">{message}</p>
+            {isRegistered && (
+              <Link 
+                href="/master-profile" 
+                className="mt-4 inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-xl shadow transition-all text-sm"
+              >
+                👉 Мастер Профайл руу нэвтрэх
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
